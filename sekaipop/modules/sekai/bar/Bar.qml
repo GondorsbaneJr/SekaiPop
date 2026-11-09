@@ -805,13 +805,19 @@ PanelWindow {
 
     // This monitor's own workspace, falling back to the focused one
     readonly property var monitor: Hyprland.monitorFor(screen)
-    readonly property int activeWorkspace: NiriWorkspaces.running ? NiriWorkspaces.activeOn(screen?.name ?? "") : monitor?.activeWorkspace?.id ?? Hyprland.focusedWorkspace?.id ?? 1
+    readonly property int rawActiveWorkspace: NiriWorkspaces.running ? NiriWorkspaces.activeOn(screen?.name ?? "") : monitor?.activeWorkspace?.id ?? Hyprland.focusedWorkspace?.id ?? 1
+
+    // Separate workspaces per screen: each monitor owns a block of 10 real workspace ids
+    // (see ~/.config/hypr/custom/keybinds.lua). The badges show 1-10 on every screen.
+    readonly property var wsOffsets: ({ "DP-4": 0, "HDMI-A-2": 10 })
+    readonly property int wsOffset: NiriWorkspaces.running ? 0 : (wsOffsets[screen?.name ?? ""] ?? 0)
+    readonly property int activeWorkspace: rawActiveWorkspace - wsOffset
 
     // Ids of workspaces that currently have windows. Lets the badges show the
     // ones above the configured count only while they are in use.
     readonly property var occupiedWorkspaces: NiriWorkspaces.running ? NiriWorkspaces.occupiedOn(screen?.name ?? "") : Hyprland.workspaces.values
-    .filter(w => w.id > 0 && w.toplevels.values.length > 0)
-    .map(w => w.id)
+    .filter(w => w.id > wsOffset && w.id <= wsOffset + 10 && w.toplevels.values.length > 0)
+    .map(w => w.id - wsOffset)
 
     // Hyprland.usingLua is documented as a real property, but on some
     // Quickshell builds it comes back as plain `undefined` rather than
@@ -827,7 +833,7 @@ PanelWindow {
     // Hyprland.activeToplevel is global — the same value on every
     // monitor's bar — so only treat it as *this* bar's window if it's
     // actually on this monitor's active workspace.
-    readonly property var focusedWindow: Hyprland.activeToplevel?.workspace?.id === activeWorkspace
+    readonly property var focusedWindow: Hyprland.activeToplevel?.workspace?.id === rawActiveWorkspace
     ? Hyprland.activeToplevel
     : null
 
@@ -1155,8 +1161,8 @@ PanelWindow {
                                 Hyprland.dispatch("focusmonitor " + win.monitor.name)
                     }
                     Hyprland.dispatch(win.usingLua
-                    ? "hl.dsp.focus({ workspace = " + workspace + " })"
-                    : "workspace " + workspace)
+                    ? "hl.dsp.focus({ workspace = " + (workspace + win.wsOffset) + " })"
+                    : "workspace " + (workspace + win.wsOffset))
                 }
             }
         }
