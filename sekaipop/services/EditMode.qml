@@ -773,7 +773,23 @@ Singleton {
             "Edit Desktop", "Go to an empty workspace to edit the desktop."])
     }
 
-    function open(screen, tab) {
+    // Quickshell's window list can lag behind Hyprland (a window that closed, moved or was
+    // hidden can still count as "on this workspace"). Before refusing, ask Hyprland for a
+    // fresh list once and check again.
+    property var recheckArgs: null
+
+    Timer {
+        id: recheckTimer
+        interval: 200
+        onTriggered: {
+            const a = root.recheckArgs
+            root.recheckArgs = null
+            if (a)
+                root.open(a.screen, a.tab, true)
+        }
+    }
+
+    function open(screen, tab, rechecked) {
         if (LockState.locked || GameModeService.enabled)
             return
         const name = (typeof screen === "string" && screen !== "") ? screen : root.focusedScreenName()
@@ -784,6 +800,12 @@ Singleton {
         if (root.active && root.screenName === name)
             return
         if (root.appsOn(name)) {
+            if (!rechecked) {
+                root.recheckArgs = { screen: name, tab: tab }
+                Hyprland.refreshToplevels()
+                recheckTimer.restart()
+                return
+            }
             root.refuse()
             return
         }
