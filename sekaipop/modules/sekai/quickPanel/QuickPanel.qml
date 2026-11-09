@@ -642,6 +642,16 @@ Scope {
     // up if it's down, then buzz. The card itself is driven straight off
     // the source's toast / toastActive (see the panelFace bindings).
     function alert() {
+        // Not opened by you: the alert is shown on the Quick screen (where the
+        // notification card is), even if the phone was last closed on Apps and has
+        // not finished sliding away yet (the route only resets once it is gone).
+        if (!open && !settingsOpen && faceScreen !== "quick") {
+            setRoute(PR.open("quick"))
+            routeAnim.stop()
+            routePrep.stop()
+            routeK = 0
+            appsFace.reset()
+        }
         // Only the tip is up: it becomes the alert's phone, which rises a bit
         // further to show the card. alertUp first, so `up` never drops.
         if (peekUp && !open) {
@@ -2430,7 +2440,10 @@ Scope {
 
             // The Quick Panel's phone takes the mouse (and the click-away's
             // eyes) unless the Settings have settled in its place.
-            readonly property bool quickInput: !(root.settingsOpen && flip >= 1 && !flipping)
+            // Never while the phone is down: the window stays mapped after the first open,
+            // and a full-size mask then sat invisibly over the middle of a bottom bar,
+            // eating its clicks.
+            readonly property bool quickInput: win.shown && !(root.settingsOpen && flip >= 1 && !flipping)
 
             // What the window's input region is made of (hitRect, railHost). The window stays
             // mapped once it has been shown, and those rectangles are pinned to the phone's
