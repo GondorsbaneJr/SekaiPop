@@ -9,7 +9,7 @@ hl.config({
             enabled = true,
             window_gap = 30,     -- px: how close to another window before it snaps to it
             monitor_gap = 40,    -- px: how close to a screen edge before it snaps to it
-            respect_gaps = true, -- keep the normal gap between snapped windows
+            respect_gaps = false, -- snap flush: no gap to the screen edge or the other window
             border_overlap = false,
         },
     },
