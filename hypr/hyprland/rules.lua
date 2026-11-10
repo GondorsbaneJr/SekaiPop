@@ -60,7 +60,8 @@ hl.window_rule({match = {title = "^(Copying — Dolphin)$" }, move = {40, 80}})
 
 -- Tiling
 -- Ignore app maximize requests so restored window states do not override tiling.
-hl.window_rule({match = {class = ".*" }, suppress_event = "maximize"})
+-- (disabled so title-bar maximize buttons work; Hyprland already ignores maximize on first open)
+-- hl.window_rule({match = {class = ".*" }, suppress_event = "maximize"})
 hl.window_rule({match = {class = "^dev\\.warp\\.Warp$" }, tile = true})
 
 -- Picture-in-Picture
