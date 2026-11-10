@@ -38,6 +38,8 @@
 #include <hyprland/src/xwayland/XWayland.hpp>
 #include <hyprland/src/desktop/state/ViewState.hpp>
 #include <hyprland/src/desktop/state/ViewHitTester.hpp>
+#include <cstdio>
+#include <cstdarg>
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <unordered_map>
 #include <cstring>
@@ -48,7 +50,7 @@
 
 using namespace Desktop::View;
 
-inline HANDLE PHANDLE = nullptr;
+static HANDLE PHANDLE = nullptr;
 
 static auto makeListener(PHLWINDOW w) {
     PHLWINDOWREF ref = w;
@@ -67,8 +69,8 @@ static auto makeListener(PHLWINDOW w) {
 }
 
 using StateListener = decltype(makeListener(PHLWINDOW{}));
-inline std::vector<std::pair<PHLWINDOWREF, StateListener>> g_listeners;
-inline decltype(Event::bus()->m_events.window.open.listen([](PHLWINDOW) {})) g_openListener;
+static std::vector<std::pair<PHLWINDOWREF, StateListener>> g_listeners;
+static decltype(Event::bus()->m_events.window.open.listen([](PHLWINDOW) {})) g_openListener;
 
 static void watch(PHLWINDOW w) {
     if (!w)
@@ -85,15 +87,30 @@ static void watch(PHLWINDOW w) {
 //   window out into a floating one under the cursor. Super+drag keeps tiling's swap behaviour.
 // - Dropping a floating window with the cursor on a screen's top edge maximizes it; on the
 //   left/right edge it fills that half. Dragging a snapped window out restores its old size.
-inline CFunctionHook* g_beginHook = nullptr;
-inline CFunctionHook* g_endHook   = nullptr;
-inline std::unordered_map<void*, Vector2D> g_preSnapSize; // window ptr -> floating size before a snap
+static CFunctionHook* g_beginHook = nullptr;
+static CFunctionHook* g_endHook   = nullptr;
+static std::unordered_map<void*, Vector2D> g_preSnapSize; // window ptr -> floating size before a snap
 
 using beginFn = void (*)(void*, SP<Layout::ITarget>, eMouseBindMode, std::optional<Layout::eRectCorner>, bool);
 using endFn   = bool (*)(void*);
 
+// Debug log of drags: $XDG_RUNTIME_DIR/hypr-snap.log, only when Hyprland was started with
+// HYPR_SNAP_DEBUG=1 in its environment.
+static void dlog(const char* fmt, ...) {
+    static const bool on = getenv("HYPR_SNAP_DEBUG") != nullptr;
+    if (!on) return;
+    static FILE* f = nullptr;
+    if (!f) {
+        const char* rt = getenv("XDG_RUNTIME_DIR");
+        f = fopen((std::string(rt ? rt : "/tmp") + "/hypr-snap.log").c_str(), "a");
+        if (!f) return;
+    }
+    va_list ap; va_start(ap, fmt); vfprintf(f, fmt, ap); va_end(ap);
+    fputc('\n', f); fflush(f);
+}
 static void hkBeginDrag(void* thisptr, SP<Layout::ITarget> target, eMouseBindMode mode, std::optional<Layout::eRectCorner> edge, bool clientDrag) {
     const auto w = target ? target->window() : nullptr;
+    dlog("begin: win=%p mode=%d clientDrag=%d floating=%d", (void*)w.get(), (int)mode, clientDrag, target ? target->floating() : -1);
     if (w && mode == MBIND_MOVE && clientDrag) {
         const auto cursor     = g_pInputManager->getMouseCoordsInternal();
         const CBox before     = target->position();
@@ -134,6 +151,7 @@ static void hkBeginDrag(void* thisptr, SP<Layout::ITarget> target, eMouseBindMod
     (*(beginFn)g_beginHook->m_original)(thisptr, target, mode, edge, clientDrag);
 }
 
+
 static bool hkEndDrag(void* thisptr) {
     const auto& DC     = g_layoutManager->dragController();
     const auto  target = DC ? DC->target() : nullptr;
@@ -141,15 +159,19 @@ static bool hkEndDrag(void* thisptr) {
     const bool  ret    = (*(endFn)g_endHook->m_original)(thisptr);
 
     const auto  w = target ? target->window() : nullptr;
+    if (target)
+        dlog("end: win=%p mode=%d floating=%d mapped=%d", (void*)w.get(), (int)mode, target->floating(), w ? w->mapped() : -1);
     if (!w || mode != MBIND_MOVE || !target->floating() || !w->mapped())
         return ret;
 
     const auto cursor = g_pInputManager->getMouseCoordsInternal();
     const auto mon    = State::monitorState()->query().vec(cursor).run();
+    dlog("  cursor=%.1f,%.1f mon=%s", cursor.x, cursor.y, mon ? mon->m_name.c_str() : "none");
     if (!mon)
         return ret;
     const CBox   box  = mon->logicalBox();
     const CBox   work = mon->logicalBoxMinusReserved();
+    dlog("  box=%.0f,%.0f %.0fx%.0f work=%.0f,%.0f %.0fx%.0f", box.x, box.y, box.w, box.h, work.x, work.y, work.w, work.h);
     const double E = 3, G = 10;
     const auto   remember = [&] {
         if (!g_preSnapSize.contains(w.get()))
@@ -173,8 +195,8 @@ static bool hkEndDrag(void* thisptr) {
 // Hyprland 0.57.1 advertises _NET_WM_MOVERESIZE but never handles it, so dragging an X11 app's
 // own title bar (Electron apps under XWayland, Steam, ...) does nothing. Handle it like the
 // Wayland move/resize request: start a client drag on the window under the cursor.
-inline CFunctionHook* g_clientMsgHook = nullptr;
-inline xcb_atom_t     g_moveResizeAtom = XCB_ATOM_NONE;
+static CFunctionHook* g_clientMsgHook = nullptr;
+static xcb_atom_t     g_moveResizeAtom = XCB_ATOM_NONE;
 using clientMsgFn = void (*)(void*, xcb_client_message_event_t*);
 
 static void hkClientMessage(void* thisptr, xcb_client_message_event_t* e) {
@@ -234,7 +256,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_beginHook = hookByName("beginDragTarget", "CLayoutManager::beginDragTarget", (void*)&hkBeginDrag);
     g_endHook   = hookByName("endDragTarget", "CLayoutManager::endDragTarget", (void*)&hkEndDrag);
     g_clientMsgHook = hookByName("handleClientMessage", "CXWM::handleClientMessage", (void*)&hkClientMessage);
-    return {"minimize-to-event", "App minimize buttons -> window.minimize; KDE-style title-bar drag and edge snapping", "local", "2.1"};
+    return {"minimize-to-event", "App minimize buttons -> window.minimize; KDE-style title-bar drag and edge snapping", "local", "2.2"};
 }
 
 APICALL EXPORT void PLUGIN_EXIT() {
