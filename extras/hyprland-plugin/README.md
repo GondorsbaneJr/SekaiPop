@@ -16,13 +16,19 @@ Loaded at login by `~/.config/hypr/custom/execs.lua`. Rebuild after every Hyprla
 
 ## Title bars (hyprbars)
 
-Apps like Spotify draw no title bar of their own and expect the window manager to draw
-one, so on Hyprland there is nothing to drag. `hypr/custom/titlebars.lua` gives only the
-apps listed in `WANT_BAR` a bar from the official hyprbars plugin, themed for SekaiPop,
-with minimize-to-dock, maximize and close buttons.
+Many Wayland apps (Qt, GTK3, kitty, Spotify) draw no title bar and ask the window manager
+to draw one, so on Hyprland there is nothing to drag. The official hyprbars plugin, themed
+in `hypr/custom/titlebars.lua` with minimize-to-dock, maximize and close buttons, draws one.
 
-`hyprbars-sekaipop.patch` (against hyprland-plugins `d2427d4`) makes a bar drag start the
-same kind of drag as an app's own title bar, so minimize-to-event floats and snaps it.
+`hyprbars-sekaipop.patch` (against hyprland-plugins `d2427d4`):
+- a bar only for windows that asked for server-side decorations (xdg-decoration or KDE
+  server-decoration); `WANT_BAR` / `NO_BAR` in titlebars.lua override that per app;
+- `floating_bar_opacity`: floating windows get a see-through bar (0.1 here);
+- a bar drag starts the same kind of drag as an app's own title bar, so minimize-to-event
+  floats and snaps it.
+
+Never `hyprctl plugin unload` hyprbars in a running session: windows keep its bars and
+Hyprland crashes on the next frame. Install the new .so and log out and back in.
 
 Build (Hyprland 0.57.1), then copy `hyprbars.so` to `~/.local/lib/hyprland-plugins/`:
 

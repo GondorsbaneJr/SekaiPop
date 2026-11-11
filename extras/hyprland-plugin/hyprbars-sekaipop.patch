@@ -1,8 +1,15 @@
 diff --git a/hyprbars/barDeco.cpp b/hyprbars/barDeco.cpp
-index e57f77b..c3be33d 100644
+index e57f77b..88ffa05 100644
 --- a/hyprbars/barDeco.cpp
 +++ b/hyprbars/barDeco.cpp
-@@ -185,7 +185,7 @@ void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
+@@ -1,4 +1,6 @@
+ #include "barDeco.hpp"
++#include "wantsSSD.hpp"
++#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
+ 
+ #include <hyprland/src/Compositor.hpp>
+ #include <hyprland/src/desktop/state/FocusState.hpp>
+@@ -185,7 +187,7 @@ void CHyprBar::onTouchMove(Event::SCallbackInfo& info, ITouch::SMotionEvent e) {
          // Pin it so you can change workspaces while dragging a window
          (void)Config::Actions::pinWindow(Config::Actions::eTogglableAction::TOGGLE_ACTION_ENABLE, m_pWindow.lock());
  
@@ -11,7 +18,7 @@ index e57f77b..c3be33d 100644
          m_bDraggingThis = true;
      }
  }
-@@ -284,7 +284,7 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
+@@ -284,7 +286,7 @@ void CHyprBar::handleUpEvent(Event::SCallbackInfo& info) {
  }
  
  void CHyprBar::handleMovement() {
@@ -20,3 +27,125 @@ index e57f77b..c3be33d 100644
      m_bDraggingThis = true;
      LOG(Log::DEBUG, "[hyprbars] Dragging initiated on {:x}", (uintptr_t)m_pWindow.lock().get());
      return;
+@@ -493,7 +495,11 @@ void CHyprBar::renderPass(Render::CRenderContext& ctx, PHLMONITOR pMonitor, cons
+         }
+     }
+ 
+-    const CHyprColor DEST_COLOR = m_bForcedBarColor.value_or(configColor(BARCOLOR));
++    CHyprColor DEST_COLOR = m_bForcedBarColor.value_or(configColor(BARCOLOR));
++    // SekaiPop: see-through bar while the window floats (not tiled, not maximized/fullscreen)
++    if (PWINDOW->isFloating() && !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_MAXIMIZED) &&
++        !Fullscreen::controller()->isFullscreen(PWINDOW, Fullscreen::FSMODE_FULLSCREEN))
++        DEST_COLOR.a *= std::clamp(g_pGlobalState->config.floatingBarOpacity->value(), 0.F, 1.F);
+     if (DEST_COLOR != m_cRealBarColor->goal())
+         *m_cRealBarColor = DEST_COLOR;
+ 
+@@ -687,7 +693,9 @@ void CHyprBar::updateRules() {
+ 
+     m_bForcedBarColor   = std::nullopt;
+     m_bForcedTitleColor = std::nullopt;
+-    m_hidden            = false;
++    // SekaiPop: a bar only for apps that ask for server-side decorations; a hyprbars:no_bar
++    // rule (true or false) overrides that either way.
++    m_hidden            = !windowWantsServerSideDecorations(PWINDOW);
+ 
+     if (PWINDOW->m_ruleApplicator->m_otherProps.props.contains(g_pGlobalState->nobarRuleIdx))
+         m_hidden = truthy(PWINDOW->m_ruleApplicator->m_otherProps.props.at(g_pGlobalState->nobarRuleIdx)->effect);
+diff --git a/hyprbars/globals.hpp b/hyprbars/globals.hpp
+index 2911644..8e7b594 100644
+--- a/hyprbars/globals.hpp
++++ b/hyprbars/globals.hpp
+@@ -7,6 +7,7 @@
+ #include <hyprland/src/config/values/types/StringValue.hpp>
+ #include <hyprland/src/config/values/types/ColorValue.hpp>
+ #include <hyprland/src/config/values/types/FontWeightValue.hpp>
++#include <hyprland/src/config/values/types/FloatValue.hpp>
+ 
+ #include <optional>
+ 
+@@ -40,6 +41,7 @@ struct SGlobalState {
+         SP<Config::Values::CIntValue>        barPadding;
+         SP<Config::Values::CIntValue>        barButtonPadding;
+         SP<Config::Values::CBoolValue>       barBlur, barTitleEnabled, barPartOfWindow, barPrecedenceOverBorder, enabled, iconOnHover, buttonsOnHover;
++        SP<Config::Values::CFloatValue>      floatingBarOpacity; // SekaiPop
+         SP<Config::Values::CStringValue>     barTextFont, barTextAlign, barButtonsAlignment, onDoubleClick;
+     } config;
+ };
+diff --git a/hyprbars/main.cpp b/hyprbars/main.cpp
+index 3d88b57..dbfa986 100644
+--- a/hyprbars/main.cpp
++++ b/hyprbars/main.cpp
+@@ -216,6 +216,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.iconOnHover);
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.buttonsOnHover);
+     HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.onDoubleClick);
++    // SekaiPop: bar opacity multiplier while the window floats (not tiled, not maximized)
++    g_pGlobalState->config.floatingBarOpacity = makeShared<Config::Values::CFloatValue>("plugin:hyprbars:floating_bar_opacity",
++        "Bar opacity multiplier for floating (not tiled or maximized) windows", 1.F);
++    HyprlandAPI::addConfigValueV2(PHANDLE, g_pGlobalState->config.floatingBarOpacity);
+ 
+     HyprlandAPI::addLuaFunction(PHANDLE, "hyprbars", "add_button", ::newLuaButton);
+     HyprlandAPI::addLuaFunction(PHANDLE, "hyprbars", "set_title", ::setLuaTitle);
+diff --git a/hyprbars/wantsSSD.cpp b/hyprbars/wantsSSD.cpp
+new file mode 100644
+index 0000000..35d325c
+--- /dev/null
++++ b/hyprbars/wantsSSD.cpp
+@@ -0,0 +1,48 @@
++// SekaiPop: does a Wayland window ask the compositor to draw its decorations?
++// Two protocols: xdg-decoration (Qt, kitty, Chromium/CEF...) and KDE's older
++// server-decoration (GTK3). Hyprland keeps both in private members; this file opens them up
++// (their dependencies are included first, so the access change only hits these headers).
++#include <any>
++#include <cstdint>
++#include <functional>
++#include <unordered_map>
++#include <vector>
++#include <hyprland/src/protocols/WaylandProtocol.hpp>
++#include <hyprland/protocols/xdg-decoration-unstable-v1.hpp>
++#include <hyprland/protocols/kde-server-decoration.hpp>
++#define private public
++#include <hyprland/src/protocols/XDGDecoration.hpp>
++#include <hyprland/src/protocols/ServerDecorationKDE.hpp>
++#undef private
++#include <hyprland/src/protocols/XDGShell.hpp>
++#include <hyprland/src/desktop/view/window/Window.hpp>
++
++#include "wantsSSD.hpp"
++
++// What Hyprland told the app (it honours the app's own request), so this is "the app
++// will draw no decorations of its own".
++bool windowWantsServerSideDecorations(PHLWINDOW window) {
++    if (!window || window->backend().isX11())
++        return false;
++
++    if (PROTO::xdgDecoration) {
++        for (const auto& [toplevelRes, deco] : PROTO::xdgDecoration->m_decorations) {
++            if (!deco || !toplevelRes)
++                continue;
++            const auto TOPLEVEL = CXDGToplevelResource::fromResource(toplevelRes);
++            if (!TOPLEVEL || TOPLEVEL->m_window.lock() != window)
++                continue;
++            return deco->mostRecentlySent == ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE;
++        }
++    }
++
++    if (PROTO::serverDecorationKDE) {
++        const auto SURF = window->backend().surface();
++        for (const auto& deco : PROTO::serverDecorationKDE->m_decos) {
++            if (deco && SURF && deco->m_surf == SURF)
++                return deco->m_mostRecentlySent == ORG_KDE_KWIN_SERVER_DECORATION_MODE_SERVER;
++        }
++    }
++
++    return false; // never asked: the app draws its own (or none)
++}
+diff --git a/hyprbars/wantsSSD.hpp b/hyprbars/wantsSSD.hpp
+new file mode 100644
+index 0000000..d13e24e
+--- /dev/null
++++ b/hyprbars/wantsSSD.hpp
+@@ -0,0 +1,3 @@
++#pragma once
++#include <hyprland/src/desktop/DesktopTypes.hpp>
++bool windowWantsServerSideDecorations(PHLWINDOW window);
