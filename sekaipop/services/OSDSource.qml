@@ -44,7 +44,7 @@ Singleton {
     }
 
     // ===== volume / mic =====
-    readonly property real volumeStep: 0.05   // 5%, matches the usual key step
+    readonly property real volumeStep: 0.02   // 2% per key press
 
     PwObjectTracker {
         objects: [Pipewire.defaultAudioSink, Pipewire.defaultAudioSource].filter(n => n)
