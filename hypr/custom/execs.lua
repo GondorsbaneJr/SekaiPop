@@ -12,3 +12,10 @@ end)
 hl.on("hyprland.start", function()
     hl.exec_cmd(os.getenv("HOME") .. "/.config/hypr/custom/shell-watchdog.sh")
 end)
+
+-- Title bars for apps that expect the window manager to draw one (Spotify): hyprbars, built
+-- for Hyprland 0.57.1 from hyprland-plugins d2427d4 + hyprbars-sekaipop.patch (bar drags float
+-- and snap like app title bars). Which apps get a bar: custom/titlebars.lua.
+hl.on("hyprland.start", function()
+    hl.exec_cmd("hyprctl plugin load " .. os.getenv("HOME") .. "/.local/lib/hyprland-plugins/hyprbars.so")
+end)

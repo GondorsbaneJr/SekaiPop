@@ -13,3 +13,20 @@ Build (Fedora 45, needs podman), from this folder:
     install -D minimize-to-event.so ~/.local/lib/hyprland-plugins/minimize-to-event.so
 
 Loaded at login by `~/.config/hypr/custom/execs.lua`. Rebuild after every Hyprland update.
+
+## Title bars (hyprbars)
+
+Apps like Spotify draw no title bar of their own and expect the window manager to draw
+one, so on Hyprland there is nothing to drag. `hypr/custom/titlebars.lua` gives only the
+apps listed in `WANT_BAR` a bar from the official hyprbars plugin, themed for SekaiPop,
+with minimize-to-dock, maximize and close buttons.
+
+`hyprbars-sekaipop.patch` (against hyprland-plugins `d2427d4`) makes a bar drag start the
+same kind of drag as an app's own title bar, so minimize-to-event floats and snaps it.
+
+Build (Hyprland 0.57.1), then copy `hyprbars.so` to `~/.local/lib/hyprland-plugins/`:
+
+    git clone https://github.com/hyprwm/hyprland-plugins && cd hyprland-plugins
+    git checkout d2427d4 && git apply /path/to/hyprbars-sekaipop.patch && cd ..
+    cp sdegler-hyprland.repo build-hyprbars-in-container.sh /some/build/dir/
+    podman run --rm -v $PWD:/src:Z -v /some/build/dir:/build:Z fedora:45 bash /build/build-hyprbars-in-container.sh

@@ -14,3 +14,6 @@ hl.config({
         },
     },
 })
+
+-- Title bars for apps that need one (only once the hyprbars plugin is loaded).
+dofile(os.getenv("HOME") .. "/.config/hypr/custom/titlebars.lua")
