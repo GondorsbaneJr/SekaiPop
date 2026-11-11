@@ -49,7 +49,7 @@ shell("CTRL + SUPER + SHIFT + D", "theme darkToggle", "Toggle dark mode")
 -- Restart the shell. Only one shell may run at a time (its GlobalShortcut registers once),
 -- so the old one is stopped before the new one starts.
 hl.bind("CTRL + SUPER + R",
-    hl.dsp.exec_cmd("pkill -x qs; pkill -x quickshell; sleep 0.5; setsid " .. QS .. " >/dev/null 2>&1 &"),
+    hl.dsp.exec_cmd("pkill -x qs; pkill -x quickshell; sleep 0.5; setsid prlimit --nofile=65536:1048576 " .. QS .. " >/dev/null 2>&1 &"),
     { description = "Shell: Restart shell" })
 
 -- Volume and brightness go through the shell so its on-screen display shows them;

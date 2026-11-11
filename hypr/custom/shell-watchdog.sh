@@ -34,7 +34,7 @@ while :; do
     journalctl --user --no-pager --since "-10min" 2>/dev/null | tail -n 300 > "$LOGS/$stamp/journal.txt"
     ls -1d "$LOGS"/*/ 2>/dev/null | head -n -20 | xargs -r rm -rf   # keep the last 20
 
-    setsid qs -c sekaipop -n -d >/dev/null 2>&1 </dev/null
+    setsid prlimit --nofile=65536:1048576 qs -c sekaipop -n -d >/dev/null 2>&1 </dev/null
     # Lock again once its IPC answers (harmless if it wasn't locked: you just unlock).
     i=0
     until qs -c sekaipop ipc call lock lock >/dev/null 2>&1 || [ $i -ge 30 ]; do sleep 1; i=$((i+1)); done

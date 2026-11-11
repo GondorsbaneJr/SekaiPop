@@ -17,7 +17,7 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("hyprctl setcursor " .. cursorTheme .. " " .. cursorSize)
 
     -- The shell: bar, dock, phone, lockscreen, notifications, polkit, wallpaper
-    hl.exec_cmd(QS)
+    hl.exec_cmd("prlimit --nofile=65536:1048576 " .. QS) -- 1024 open files is too few for the shell on NVIDIA
 
     -- Idle: dim/lock/sleep (the lock itself is the shell's: see hypridle.conf)
     hl.exec_cmd("hypridle")
