@@ -58,7 +58,10 @@ Item {
     // the real lock surface and LockRing.qml's copy of it can never differ.
     readonly property string wallpaperFile: WallpaperService.lockImagePathFor(root.screenName)
 
-    readonly property real u: Math.max(0.55, root.height / 1080) * root.uiScale
+    // Sized off the height, but never wider than the screen: the layout needs about
+    // 1300 units across (side panel, clock, password row), so on a portrait monitor
+    // the width decides instead and nothing runs off the right edge.
+    readonly property real u: Math.max(0.55, Math.min(root.height / 1080, root.width / 1300)) * root.uiScale
     function px(n) {
         return Math.round(n * root.u)
     }
