@@ -22,9 +22,11 @@ hl.config({ plugin = { hyprbars = {
     on_double_click     = [[hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" })']],
 } } })
 
--- Right to left: close, maximize, minimize (to the dock, like Super+M).
+-- Right to left: close, fullscreen, maximize, minimize (to the dock, like Super+M).
 hl.plugin.hyprbars.add_button({ bg_color = "rgb(f2577f)", fg_color = "rgb(1d1429)", size = 16, icon = "×",
     action = [[hyprctl dispatch 'hl.dsp.window.close()']] })
+hl.plugin.hyprbars.add_button({ bg_color = "rgb(32cd32)", fg_color = "rgb(1d1429)", size = 16, icon = "⤢",
+    action = [[hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" })']] })
 hl.plugin.hyprbars.add_button({ bg_color = "rgb(b16df2)", fg_color = "rgb(1d1429)", size = 16, icon = "+",
     action = [[hyprctl dispatch 'hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" })']] })
 hl.plugin.hyprbars.add_button({ bg_color = "rgb(7f6bd9)", fg_color = "rgb(1d1429)", size = 16, icon = "–",

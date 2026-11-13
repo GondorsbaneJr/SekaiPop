@@ -18,7 +18,7 @@ Loaded at login by `~/.config/hypr/custom/execs.lua`. Rebuild after every Hyprla
 
 Many Wayland apps (Qt, GTK3, kitty, Spotify) draw no title bar and ask the window manager
 to draw one, so on Hyprland there is nothing to drag. The official hyprbars plugin, themed
-in `hypr/custom/titlebars.lua` with minimize-to-dock, maximize and close buttons, draws one.
+in `hypr/custom/titlebars.lua` with close, fullscreen, maximize and minimize-to-dock buttons, draws one.
 
 `hyprbars-sekaipop.patch` (against hyprland-plugins `d2427d4`):
 - a bar only for windows that asked for server-side decorations (xdg-decoration or KDE
