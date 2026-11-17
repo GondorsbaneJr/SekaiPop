@@ -61,6 +61,11 @@ Item {
     // Sized off the height, but never wider than the screen: the layout needs about
     // 1300 units across (side panel, clock, password row), so on a portrait monitor
     // the width decides instead and nothing runs off the right edge.
+    // A portrait monitor shows just the wallpaper (and "Locked since"): the side panel,
+    // the clock and the password row stay on the landscape screens. Typing still works
+    // on any monitor; the dots show on the main one.
+    readonly property bool portrait: root.height > root.width
+
     readonly property real u: Math.max(0.55, Math.min(root.height / 1080, root.width / 1300)) * root.uiScale
     function px(n) {
         return Math.round(n * root.u)
@@ -393,8 +398,10 @@ Item {
         // ===== side panel =====
         Rectangle {
             id: sidebar
-            x: root.px(48)
-            y: root.px(130)
+            visible: !root.portrait
+            // Sits right on top of the "Locked since" pill, left edges lined up.
+            x: lockedPill.x
+            y: lockedPill.y - height - root.px(16)
             width: root.px(340)
             height: sideCol.implicitHeight + root.px(40)
             radius: root.px(26)
@@ -596,7 +603,9 @@ Item {
         // ===== the title =====
         Item {
             id: titleBlock
-            x: sidebar.x + sidebar.width + root.px(64)
+            visible: !root.portrait
+            // Top-left corner, lined up with the panel and the "Locked since" pill below.
+            x: lockedPill.x
             y: root.px(34)
 
             Rectangle {
@@ -630,23 +639,6 @@ Item {
                 text: Qt.formatDateTime(clock.date, root.use24h ? "HH:mm" : "hh:mm AP").split(" ")[0]
                 pixelSize: root.px(236)
                 outline: root.px(7)
-            }
-
-            // The line of the song that is playing (Settings -> General -> Lyrics on the
-            // lockscreen). Nothing is built while it is off.
-            Loader {
-                id: lyricsLoader
-                // (a property of its own, so the capsule's `media` does not read itself)
-                property var player: media
-                active: SettingsService.flag("lock.lyrics")
-                x: root.px(8)
-                y: bigClock.y + bigClock.height + root.px(26)
-
-                sourceComponent: LockLyrics {
-                    media: lyricsLoader.player
-                    px: root.px
-                    maxWidth: Math.min(root.px(980), root.width - titleBlock.x - root.px(120))
-                }
             }
 
             // AM / PM, as the mint tag the gacha screen uses for "Group Event Exclusive".
@@ -717,6 +709,7 @@ Item {
 
         // ===== bottom left =====
         Rectangle {
+            id: lockedPill
             x: root.px(64)
             // Stack above the controls when the two rows would overlap.
             y: x + width + root.px(24) > controls.x
@@ -752,9 +745,28 @@ Item {
             }
         }
 
+        // The line of the song that is playing (Settings -> General -> Lyrics on the
+        // lockscreen), just above the Unlock button, right edges lined up; it grows
+        // upwards as it appears. Nothing is built while it is off.
+        Loader {
+            id: lyricsLoader
+            // (a property of its own, so the capsule's `media` does not read itself)
+            property var player: media
+            active: SettingsService.flag("lock.lyrics") && !root.portrait
+            x: controls.x + controls.width - width
+            y: controls.y - height - root.px(22)
+
+            sourceComponent: LockLyrics {
+                media: lyricsLoader.player
+                px: root.px
+                maxWidth: Math.min(root.px(980), controls.x + controls.width - root.px(64))
+            }
+        }
+
         // ===== bottom right: the password row =====
         Item {
             id: controls
+            visible: !root.portrait
 
             readonly property int pillH: root.px(122)
             readonly property int pwW: root.px(560)
