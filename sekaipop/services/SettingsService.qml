@@ -111,6 +111,7 @@ Singleton {
         "settings.page": "",
         // The lockscreen's look: gacha (the Project Sekai gacha screen) | calendar (framed pictures cut out of your wallpaper, the month, power keys).
         "lock.style": "gacha",
+        "lock.transition": "wallpaper",
         // Calendar lockscreen: where each frame's picture comes from: auto (the interesting parts of the wallpaper) | fixed (always the same spots).
         "lock.crop": "auto",
         // Calendar lockscreen: the pictures in colour (your theme's colours around them) | mono (black and white).

@@ -450,6 +450,8 @@ Singleton {
 
     // ===== per-style timing =====
     function transitionMsFor(style) {
+        if (style === "tileFlip")   // lockscreen only (Settings -> General -> Lock transition)
+            return 2000;
         if (style === "sekaiIris")
             return 2000;
         if (style === "sekaiRing" || style === "star" || style === "diagonalBlocks")
@@ -459,7 +461,7 @@ Singleton {
 
     function transitionLinearFor(style) {
         return style === "sekaiIris" || style === "sekaiRing"
-            || style === "star" || style === "diagonalBlocks";
+            || style === "star" || style === "diagonalBlocks" || style === "tileFlip";
     }
 
     // The compiled lockscreen shader pair for a style: shaders/<stem>.frag.qsb
@@ -472,6 +474,7 @@ Singleton {
         case "star": return "sekai_star_lock";
         case "diagonalBlocks": return "sekai_blocks_lock";
         case "sekaiFlash": return "sekai_flash_lock";
+        case "tileFlip": return "tile_flip_lock";
         default: return "fade_lock";
         }
     }

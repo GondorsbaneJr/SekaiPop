@@ -57,7 +57,10 @@ Singleton {
     // "sekaiFlash" or "fade"). If that style's lock shader could not be loaded
     // (its .qsb was never built), LockRing.qml sets styleFallback and the
     // lock plays the ring instead, which always has a shader.
-    readonly property string wantedStyle: WallpaperService.transitionStyle
+    // Settings -> General -> Lock transition can pick a lock-only style instead
+    // ("tileFlip": the screen flips over as square tiles); "wallpaper" follows the above.
+    readonly property string lockTransition: SettingsService.get("lock.transition") ?? "wallpaper"
+    readonly property string wantedStyle: root.lockTransition === "tileFlip" ? "tileFlip" : WallpaperService.transitionStyle
     readonly property string transitionStyle: root.styleFallback ? "sekaiRing" : root.wantedStyle
     property bool styleFallback: false
     // Picking another style in Settings gets a fresh try.

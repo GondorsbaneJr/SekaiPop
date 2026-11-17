@@ -95,6 +95,21 @@ PanelWindow {
         layer.enabled: true
     }
 
+    // A still of the desktop for the tile flip (the side of each card that is the
+    // desktop). Taken once when a lock starts, and kept through the unlock; the
+    // other styles never ask for it, so they capture nothing.
+    readonly property bool wantsDesk: LockState.transitionStyle === "tileFlip"
+    ScreencopyView {
+        id: desk
+        width: win.modelData.width
+        height: win.modelData.height
+        visible: false
+        layer.enabled: true
+        live: false
+        captureSource: (win.wantsDesk && LockState.phase !== "idle") ? win.modelData : null
+        onHasContentChanged: if (hasContent) win.startLockRing()
+    }
+
     ShaderEffect {
         id: ring
         anchors.fill: parent
@@ -107,7 +122,12 @@ PanelWindow {
         // WallpaperLayer.qml's blend, this declares the union of what every
         // style needs; a property with no matching uniform in the bound
         // shader is harmlessly ignored.
+        property var source0: desk
         property var source1: pic
+        // tileFlip: the window's size and one tile's side, in pixels (about 11 tiles
+        // down the shorter side).
+        property vector2d res: Qt.vector2d(width, height)
+        property real tilePx: Math.max(32, Math.round(Math.min(width, height) / 11))
         property real progress: win.progress
         property real aspect: height > 0 ? width / height : 1.0
         property int unlocking: win.leaving ? 1 : 0
@@ -192,6 +212,9 @@ PanelWindow {
     // no wallpaper set yet).
     function startLockRing() {
         if (!win.armed)
+            return
+        // Before the timeout: wait for the picture, and (tile flip) for the desktop still.
+        if (armTimeout.running && (!pic.wallpaperReady || (win.wantsDesk && !desk.hasContent)))
             return
         win.armed = false
         armTimeout.stop()

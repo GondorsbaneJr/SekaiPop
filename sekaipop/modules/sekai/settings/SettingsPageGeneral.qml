@@ -303,6 +303,17 @@ SettingsPage {
         }
 
         SettingChoice {
+            label: "Lock transition"
+            sublabel: "Wallpaper: the same transition as a wallpaper change. Tile flip: the screen breaks into square tiles that flip over in a diagonal wave"
+            current: SettingsService.get("lock.transition")
+            options: [
+                { id: "wallpaper", label: "Wallpaper", icon: "wallpaper" },
+                { id: "tileFlip", label: "Tile flip", icon: "grid_view" }
+            ]
+            onPicked: id => SettingsService.set("lock.transition", id)
+        }
+
+        SettingChoice {
             visible: SettingsService.get("lock.style") === "calendar"
             label: "Calendar pictures"
             sublabel: "Auto looks at your wallpaper for the parts worth showing (needs ImageMagick); Fixed always shows the same spots"
