@@ -660,6 +660,30 @@ ShellRoot {
         }
     }
 
+    // Media keys drive the player the dock / bar is showing (MediaSource's pick), not
+    // whichever one playerctl happens to list first.
+    //   qs -c sekaipop ipc call media playPause | next | previous
+    // The Hyprland binds fall back to playerctl when the shell isn't running.
+    MediaSource {
+        id: keyMedia
+    }
+
+    IpcHandler {
+        target: "media"
+
+        function playPause(): void {
+            keyMedia.togglePlaying()
+        }
+
+        function next(): void {
+            keyMedia.next()
+        }
+
+        function previous(): void {
+            keyMedia.previous()
+        }
+    }
+
     // The shell's own pictures (PanelImages.qml, docs/PICTURE-FRAMING.md).
     //   qs -c sekaipop ipc call pictures pick banner|avatar|phone     open the chooser
     //                                  | frame banner|avatar|phone    open the framer

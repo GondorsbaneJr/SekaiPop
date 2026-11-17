@@ -96,6 +96,20 @@ Scope {
         return playing !== null ? playing : paused
     }
 
+    // Right after the shell (re)starts nothing has "started" yet, so a player that
+    // was already playing would lose the pick the moment it is paused (rule 3 then
+    // takes the first paused player in the list, maybe an old browser tab). Count
+    // whatever is playing at start as the last one started.
+    Component.onCompleted: {
+        const list = Mpris.players.values
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].playbackState === MprisPlaybackState.Playing) {
+                root.lastStarted = list[i]
+                break
+            }
+        }
+    }
+
     // Remember whichever player last switched to Playing.
     Instantiator {
         model: Mpris.players
