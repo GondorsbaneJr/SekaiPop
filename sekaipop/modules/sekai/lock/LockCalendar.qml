@@ -54,7 +54,10 @@ Item {
     // The same picture LockSurface.qml shows (WallpaperService decides which).
     readonly property string wallpaperFile: WallpaperService.lockImagePathFor(root.screenName)
 
-    readonly property real u: Math.max(0.55, root.height / 1080)
+    // Sized off the height, but never wider than the screen: the bottom row (password,
+    // Enter, power keys) needs about 700 units and the month beside it, so on a portrait
+    // monitor the width decides instead and nothing runs off the sides.
+    readonly property real u: Math.max(0.55, Math.min(root.height / 1080, root.width / 1300))
     function px(n) {
         return Math.round(n * root.u)
     }
@@ -125,12 +128,21 @@ Item {
 
     // The three frames, as fractions of the screen (x, y, width, height). A wide one
     // top left, a tall one on the right, a small one under the wide one.
-    readonly property rect rectA: Qt.rect(Math.round(0.021 * root.width), Math.round(0.040 * root.height),
-                                          Math.round(0.679 * root.width), Math.round(0.441 * root.height))
-    readonly property rect rectB: Qt.rect(Math.round(0.718 * root.width), Math.round(0.040 * root.height),
-                                          Math.round(0.261 * root.width), Math.round(0.745 * root.height))
-    readonly property rect rectC: Qt.rect(Math.round(0.427 * root.width), Math.round(0.519 * root.height),
-                                          Math.round(0.273 * root.width), Math.round(0.269 * root.height))
+    // On a portrait monitor the landscape layout makes the tall frame a sliver (about
+    // 1:5), so there it is pictures only: the wide frame spans the top and the other two
+    // sit under it, side by side. The clock column and the bottom row are left out
+    // (typing still works on any monitor; the dots show on the main one).
+    readonly property bool portrait: root.height > root.width
+    function frac(x, y, w, h) {
+        return Qt.rect(Math.round(x * root.width), Math.round(y * root.height),
+                       Math.round(w * root.width), Math.round(h * root.height))
+    }
+    readonly property rect rectA: root.portrait ? root.frac(0.021, 0.030, 0.958, 0.330)
+                                                : root.frac(0.021, 0.040, 0.679, 0.441)
+    readonly property rect rectB: root.portrait ? root.frac(0.511, 0.385, 0.468, 0.555)
+                                                : root.frac(0.718, 0.040, 0.261, 0.745)
+    readonly property rect rectC: root.portrait ? root.frac(0.021, 0.385, 0.468, 0.555)
+                                                : root.frac(0.427, 0.519, 0.273, 0.269)
 
     readonly property var specs: LC.specsFor([
         root.rectA.width / Math.max(1, root.rectA.height),
@@ -476,6 +488,7 @@ Item {
     // "LOCKED", a mint chip.
     LockPlate {
         id: lockedTag
+        visible: !root.portrait   // portrait: pictures only (the main screen has these)
         x: root.colX
         y: root.colTop
         width: lockedRow.implicitWidth + root.px(40)
@@ -517,6 +530,7 @@ Item {
     // The name tag: a dark "NAME" chip and your user name, on a white plate.
     LockPlate {
         id: nameTag
+        visible: !root.portrait   // portrait: pictures only (the main screen has these)
         x: lockedTag.x + lockedTag.width + root.px(16)
         y: root.colTop
         width: Math.min(nameRow.implicitWidth + root.px(36), Math.max(root.px(160), root.colRight - nameTag.x))
@@ -571,6 +585,7 @@ Item {
     // The date, as a sticker: a pink diamond and the day, date and month.
     LockPlate {
         id: datePlate
+        visible: !root.portrait   // portrait: pictures only (the main screen has these)
         x: root.colX
         y: root.colTop + root.px(62)
         width: dateRow.implicitWidth + root.px(40)
@@ -611,7 +626,7 @@ Item {
 
     // AM / PM, a little pink chip beside the date (12-hour clocks only).
     LockPlate {
-        visible: root.ampmText !== ""
+        visible: root.ampmText !== "" && !root.portrait
         x: datePlate.x + datePlate.width + root.px(16)
         y: datePlate.y
         width: ampmLabel.implicitWidth + root.px(36)
@@ -648,6 +663,7 @@ Item {
 
     Item {
         id: clockKeys
+        visible: !root.portrait   // portrait: pictures only (the main screen has these)
         x: root.colX
         y: root.colTop + root.px(124)
         width: root.colRight - root.colX
@@ -775,7 +791,7 @@ Item {
 
     LockPlate {
         id: calCard
-        visible: root.showMonth
+        visible: root.showMonth && !root.portrait
         x: root.calLeft
         // Give both date rows more vertical room, keeping the footer aligned.
         y: root.rowY - root.px(24)
@@ -854,6 +870,7 @@ Item {
 
     Item {
         id: controls
+        visible: !root.portrait   // portrait: pictures only (the main screen has these)
 
         readonly property int keyH: root.rowH
         readonly property int gap: root.px(16)
@@ -1173,6 +1190,7 @@ Item {
     // The line under the keys: what a second press will do, which key you are over, or
     // how Ctrl works.
     Text {
+        visible: !root.portrait
         x: controls.x
         y: controls.y + controls.height + root.shadowSmall + root.px(12)
         width: controls.width
