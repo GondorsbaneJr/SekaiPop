@@ -10,17 +10,10 @@ import QtQuick
 // YT" works with no extra setup.
 //
 // Which player is shown when there are several:
-//   1. whichever one most recently *started* playing, whether it's
-//      still playing or you've since paused it — pausing Spotify
-//      doesn't hand the widget over to a YouTube tab that merely
-//      happens to still be going in the background; only actually
-//      hitting play on that tab does. (This is also why pausing dims
-//      the widget instead of blanking it: the same player stays
-//      picked, just now paused.)
-//   2. nothing has ever "started" yet this session (fresh shell
-//      launch, something was already playing before it could see the
-//      transition) -> any player that's currently playing
-//   3. otherwise a paused player
+//   1. whatever is playing right now (if several, the one that started
+//      most recently)
+//   2. nothing playing -> the one that was playing last, now paused
+//   3. otherwise any paused player with a title
 //   4. otherwise nothing -> "Nothing Playing"
 Scope {
     id: root
@@ -65,35 +58,28 @@ Scope {
 
     function pickPlayer() {
         const list = Mpris.players.values
+        const isPlaying = p => p.playbackState === MprisPlaybackState.Playing
 
-        // Rule 1: the last player that actually started playing keeps
-        // the widget for as long as it's still around, playing or
-        // paused. Checked as its own pass, ahead of "any playing
-        // player" below, so a background player that never lost focus
-        // can't steal the widget back just because the current one got
-        // paused.
+        // Rule 1: whatever is playing right now. If several are, the one that
+        // started most recently.
+        if (lastStarted !== null && list.indexOf(lastStarted) >= 0 && isPlaying(lastStarted))
+            return lastStarted
         for (let i = 0; i < list.length; i++) {
-            const p = list[i]
-            if (p === lastStarted
-                    && (p.playbackState === MprisPlaybackState.Playing || p.trackTitle !== ""))
-                return p
+            if (isPlaying(list[i]))
+                return list[i]
         }
 
-        // Rule 1 found nothing usable (lastStarted is null, or that
-        // player's gone/titleless) -> fall back to whatever's actually
-        // playing, else whatever's paused with a title.
-        let playing = null
-        let paused = null
+        // Rule 2: nothing is playing -> the one that played last (paused), so
+        // pausing Spotify keeps Spotify on the card instead of an old tab.
+        if (lastStarted !== null && list.indexOf(lastStarted) >= 0 && lastStarted.trackTitle !== "")
+            return lastStarted
+
+        // Rule 3: any paused player with a title, else nothing.
         for (let i = 0; i < list.length; i++) {
-            const p = list[i]
-            if (p.playbackState === MprisPlaybackState.Playing) {
-                if (playing === null)
-                    playing = p
-            } else if (p.trackTitle !== "" && paused === null) {
-                paused = p
-            }
+            if (list[i].trackTitle !== "")
+                return list[i]
         }
-        return playing !== null ? playing : paused
+        return null
     }
 
     // Right after the shell (re)starts nothing has "started" yet, so a player that
@@ -119,8 +105,18 @@ Scope {
             target: modelData
 
             function onPlaybackStateChanged() {
-                if (modelData.playbackState === MprisPlaybackState.Playing)
+                if (modelData.playbackState === MprisPlaybackState.Playing) {
                     root.lastStarted = modelData
+                    return
+                }
+                // It stopped: if nothing else is playing, it was the last thing playing,
+                // so the card keeps it (paused) rather than an older paused player.
+                const list = Mpris.players.values
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i].playbackState === MprisPlaybackState.Playing)
+                        return
+                }
+                root.lastStarted = modelData
             }
         }
     }
